@@ -255,4 +255,4 @@ SIAfrontendonlyFINAL/
 
 ## 📝 License
 
-This is a demo/educational project. Not licensed for commercial use.
+MIT License - This is a demo/educational project.
