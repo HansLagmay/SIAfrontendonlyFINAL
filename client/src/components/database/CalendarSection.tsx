@@ -72,10 +72,10 @@ export default function CalendarSection() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">📅 All Calendar Events (calendar-events.json)</h3>
-          <ExportButtons filename="calendar-events.json" onExport={handleExport} />
+          <ExportButtons onExport={handleExport} />
         </div>
         
-        <FileMetadataComponent filename="calendar-events.json" metadata={metadata} />
+        <FileMetadataComponent metadata={metadata} />
         
         {Object.keys(eventTypeBreakdown).length > 0 && (
           <div className="mt-4 bg-gray-50 rounded p-4">

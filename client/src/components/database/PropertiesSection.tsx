@@ -84,10 +84,10 @@ export default function PropertiesSection() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">🏠 All Properties (properties.json)</h3>
-          <ExportButtons filename="properties.json" onExport={(format) => handleExport('properties.json', format)} />
+          <ExportButtons onExport={(format) => handleExport('properties.json', format)} />
         </div>
         
-        <FileMetadataComponent filename="properties.json" metadata={metadata} />
+        <FileMetadataComponent metadata={metadata} />
         
         <div className="mt-4">
           <button
@@ -119,7 +119,7 @@ export default function PropertiesSection() {
           )}
         </div>
         
-        <FileMetadataComponent filename="new-properties.json" metadata={newMetadata} />
+        <FileMetadataComponent metadata={newMetadata} />
 
         {newProperties.length === 0 ? (
           <div className="mt-4 text-center py-8 text-gray-500">

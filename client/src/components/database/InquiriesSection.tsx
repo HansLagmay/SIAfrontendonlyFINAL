@@ -94,10 +94,10 @@ export default function InquiriesSection() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">📝 All Inquiries (inquiries.json)</h3>
-          <ExportButtons filename="inquiries.json" onExport={(format) => handleExport('inquiries.json', format)} />
+          <ExportButtons onExport={(format) => handleExport('inquiries.json', format)} />
         </div>
         
-        <FileMetadataComponent filename="inquiries.json" metadata={metadata} />
+        <FileMetadataComponent metadata={metadata} />
         
         {Object.keys(statusBreakdown).length > 0 && (
           <div className="mt-4 bg-gray-50 rounded p-4">
@@ -143,7 +143,7 @@ export default function InquiriesSection() {
           )}
         </div>
         
-        <FileMetadataComponent filename="new-inquiries.json" metadata={newMetadata} />
+        <FileMetadataComponent metadata={newMetadata} />
 
         {newInquiries.length === 0 ? (
           <div className="mt-4 text-center py-8 text-gray-500">

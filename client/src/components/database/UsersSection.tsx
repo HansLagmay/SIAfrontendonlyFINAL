@@ -92,10 +92,10 @@ export default function UsersSection() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">👥 All Users (users.json)</h3>
-          <ExportButtons filename="users.json" onExport={(format) => handleExport('users.json', format)} />
+          <ExportButtons onExport={(format) => handleExport('users.json', format)} />
         </div>
         
-        <FileMetadataComponent filename="users.json" metadata={metadata} />
+        <FileMetadataComponent metadata={metadata} />
         
         <div className="mt-4 bg-gray-50 rounded p-4">
           <h4 className="font-semibold text-gray-900 mb-2">Breakdown:</h4>
@@ -141,7 +141,7 @@ export default function UsersSection() {
           )}
         </div>
         
-        <FileMetadataComponent filename="new-agents.json" metadata={newMetadata} />
+        <FileMetadataComponent metadata={newMetadata} />
 
         {newAgents.length === 0 ? (
           <div className="mt-4 text-center py-8 text-gray-500">
@@ -163,7 +163,7 @@ export default function UsersSection() {
                 {newAgents.map((agent, idx) => (
                   <div key={idx} className="border border-gray-200 rounded p-4">
                     <div className="font-semibold text-lg text-gray-900">
-                      {agent.id || agent.email} | {agent.name}
+                      {agent.id ? `${agent.id} | ${agent.name}` : agent.name}
                     </div>
                     <div className="text-sm text-gray-600 mt-2 space-y-1">
                       <div>Created: {new Date(agent.createdAt || Date.now()).toLocaleString()}</div>

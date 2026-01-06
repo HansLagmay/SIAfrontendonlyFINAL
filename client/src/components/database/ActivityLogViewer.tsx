@@ -98,10 +98,10 @@ export default function ActivityLogViewer() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-900">📋 Activity Log (activity-log.json)</h3>
-          <ExportButtons filename="activity-log.json" onExport={handleExport} />
+          <ExportButtons onExport={handleExport} />
         </div>
         
-        <FileMetadataComponent filename="activity-log.json" metadata={metadata} />
+        <FileMetadataComponent metadata={metadata} />
         
         <div className="mt-4 flex space-x-2">
           <button

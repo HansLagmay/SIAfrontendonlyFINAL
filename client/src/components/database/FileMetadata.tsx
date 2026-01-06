@@ -1,7 +1,6 @@
 import type { FileMetadata } from '../../types';
 
 interface FileMetadataProps {
-  filename: string;
   metadata: FileMetadata | null;
 }
 

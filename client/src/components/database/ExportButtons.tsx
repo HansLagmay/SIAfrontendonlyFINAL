@@ -1,5 +1,4 @@
 interface ExportButtonsProps {
-  filename: string;
   onExport: (format: 'csv' | 'json') => void;
 }
 

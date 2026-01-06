@@ -180,8 +180,9 @@ function convertToCSV(data) {
     
     let strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
     
-    // Prevent CSV injection - escape values starting with =, +, -, @, \t, \r
-    if (/^[=+\-@\t\r]/.test(strVal)) {
+    // Prevent CSV injection - escape values starting with =, +, -, @
+    const firstChar = strVal.charAt(0);
+    if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
       strVal = "'" + strVal;
     }
     

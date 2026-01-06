@@ -34,13 +34,26 @@ export default function DataTable({ data, maxRows = 10 }: DataTableProps) {
           <tbody className="bg-white divide-y divide-gray-200">
             {displayData.map((row, idx) => (
               <tr key={idx} className="hover:bg-gray-50">
-                {headers.map((header) => (
-                  <td key={header} className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                    {typeof row[header] === 'object' && row[header] !== null
-                      ? JSON.stringify(row[header])
-                      : String(row[header] ?? '')}
-                  </td>
-                ))}
+                {headers.map((header) => {
+                  const value = row[header];
+                  let displayValue = '';
+                  
+                  if (typeof value === 'object' && value !== null) {
+                    const jsonStr = JSON.stringify(value);
+                    // Truncate long JSON strings for performance
+                    displayValue = jsonStr.length > 100 
+                      ? jsonStr.substring(0, 100) + '...' 
+                      : jsonStr;
+                  } else {
+                    displayValue = String(value ?? '');
+                  }
+                  
+                  return (
+                    <td key={header} className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                      {displayValue}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
