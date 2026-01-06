@@ -3,7 +3,7 @@ interface ExportButtonsProps {
   onExport: (format: 'csv' | 'json') => void;
 }
 
-export default function ExportButtons({ filename, onExport }: ExportButtonsProps) {
+export default function ExportButtons({ onExport }: ExportButtonsProps) {
   return (
     <div className="flex space-x-2">
       <button

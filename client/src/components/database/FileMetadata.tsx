@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import type { FileMetadata } from '../../types';
 
 interface FileMetadataProps {
@@ -6,7 +5,7 @@ interface FileMetadataProps {
   metadata: FileMetadata | null;
 }
 
-export default function FileMetadataComponent({ filename, metadata }: FileMetadataProps) {
+export default function FileMetadataComponent({ metadata }: FileMetadataProps) {
   if (!metadata) {
     return (
       <div className="text-sm text-gray-500">Loading metadata...</div>
