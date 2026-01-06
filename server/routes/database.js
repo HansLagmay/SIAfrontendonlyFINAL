@@ -174,16 +174,27 @@ function convertToCSV(data) {
   const headers = Object.keys(data[0]);
   const csvRows = [headers.join(',')];
   
+  // Sanitize value to prevent CSV injection
+  const sanitizeValue = (val) => {
+    if (val === null || val === undefined) return '';
+    
+    let strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+    
+    // Prevent CSV injection - escape values starting with =, +, -, @, \t, \r
+    if (/^[=+\-@\t\r]/.test(strVal)) {
+      strVal = "'" + strVal;
+    }
+    
+    // Escape quotes and wrap in quotes if contains special characters
+    if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+      return `"${strVal.replace(/"/g, '""')}"`;
+    }
+    
+    return strVal;
+  };
+  
   for (const row of data) {
-    const values = headers.map(header => {
-      const val = row[header];
-      if (val === null || val === undefined) return '';
-      if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-      if (typeof val === 'string' && (val.includes(',') || val.includes('"') || val.includes('\n'))) {
-        return `"${val.replace(/"/g, '""')}"`;
-      }
-      return val;
-    });
+    const values = headers.map(header => sanitizeValue(row[header]));
     csvRows.push(values.join(','));
   }
   
