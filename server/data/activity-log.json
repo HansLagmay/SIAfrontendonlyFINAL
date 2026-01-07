@@ -26,5 +26,12 @@
     "action": "LOGIN_SUCCESS",
     "details": "User logged in: Maria Santos",
     "user": "Maria Santos"
+  },
+  {
+    "id": "1767665292480",
+    "timestamp": "2026-01-06T02:08:12.480Z",
+    "action": "LOGIN_SUCCESS",
+    "details": "User logged in: Admin User",
+    "user": "Admin User"
   }
 ]
