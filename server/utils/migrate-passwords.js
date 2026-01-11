@@ -21,7 +21,7 @@ const migratePasswords = async () => {
     let skippedCount = 0;
     
     // Process each user
-    for (let user of users) {
+    for (const user of users) {
       // Check if password is already hashed (bcrypt hashes start with $2b$)
       if (user.password && !user.password.startsWith('$2b$')) {
         console.log(`Migrating password for user: ${user.email}`);
