@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import { setSession } from '../utils/session';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -8,6 +9,10 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if session expired
+  const sessionExpired = new URLSearchParams(location.search).get('session_expired');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,10 +21,10 @@ const LoginPage = () => {
 
     try {
       const response = await authAPI.login({ email, password });
-      const { user } = response.data;
+      const { user, token } = response.data;
 
-      // Store user in localStorage
-      localStorage.setItem('user', JSON.stringify(user));
+      // Store session with JWT token
+      setSession(user, token);
 
       // Redirect based on role
       if (user.role === 'admin') {
@@ -43,6 +48,12 @@ const LoginPage = () => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">TES Property</h1>
           <p className="text-gray-600">Login to your account</p>
         </div>
+
+        {sessionExpired && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded mb-4">
+            Your session has expired. Please login again.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
@@ -84,7 +95,7 @@ const LoginPage = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 disabled:cursor-not-allowed"
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-blue-300 disabled:cursor-not-allowed min-h-[44px]"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>

@@ -3,19 +3,20 @@ const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
 const { readJSONFile, writeJSONFile } = require('../utils/fileOperations');
+const { authenticateToken, requireRole } = require('../middleware/auth');
 const logActivity = require('../middleware/logger');
 
-// Get database overview statistics
-router.get('/overview', async (req, res) => {
+// Get database overview statistics (protected, admin only)
+router.get('/overview', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
-    const properties = readJSONFile('properties.json');
-    const inquiries = readJSONFile('inquiries.json');
-    const users = readJSONFile('users.json');
-    const calendarEvents = readJSONFile('calendar-events.json');
-    const activityLog = readJSONFile('activity-log.json');
-    const newProperties = readJSONFile('new-properties.json');
-    const newInquiries = readJSONFile('new-inquiries.json');
-    const newAgents = readJSONFile('new-agents.json');
+    const properties = await readJSONFile('properties.json');
+    const inquiries = await readJSONFile('inquiries.json');
+    const users = await readJSONFile('users.json');
+    const calendarEvents = await readJSONFile('calendar-events.json');
+    const activityLog = await readJSONFile('activity-log.json');
+    const newProperties = await readJSONFile('new-properties.json');
+    const newInquiries = await readJSONFile('new-inquiries.json');
+    const newAgents = await readJSONFile('new-agents.json');
     
     res.json({
       properties: {
@@ -49,7 +50,7 @@ router.get('/overview', async (req, res) => {
 });
 
 // Get file metadata
-router.get('/file-metadata/:filename', async (req, res) => {
+router.get('/file-metadata/:filename', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const filename = req.params.filename;
     const filePath = path.join(__dirname, '../data', filename);
@@ -70,7 +71,7 @@ router.get('/file-metadata/:filename', async (req, res) => {
 });
 
 // Get all data from specific file
-router.get('/file/:filename', async (req, res) => {
+router.get('/file/:filename', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const data = readJSONFile(req.params.filename);
     res.json(data);
@@ -81,7 +82,7 @@ router.get('/file/:filename', async (req, res) => {
 });
 
 // Get recently added items (new-* files)
-router.get('/recent/:type', async (req, res) => {
+router.get('/recent/:type', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { type } = req.params; // 'properties', 'inquiries', 'agents'
     const filename = `new-${type}.json`;
@@ -94,7 +95,7 @@ router.get('/recent/:type', async (req, res) => {
 });
 
 // Clear "new-*" tracking files
-router.post('/clear-new/:type', async (req, res) => {
+router.post('/clear-new/:type', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { type } = req.params; // 'properties', 'inquiries', 'agents'
     const filename = `new-${type}.json`;
@@ -119,7 +120,7 @@ router.post('/clear-new/:type', async (req, res) => {
 });
 
 // Export file as CSV
-router.get('/export/:filename/csv', async (req, res) => {
+router.get('/export/:filename/csv', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const data = readJSONFile(req.params.filename);
     const csv = convertToCSV(data);
@@ -134,7 +135,7 @@ router.get('/export/:filename/csv', async (req, res) => {
 });
 
 // Export file as JSON
-router.get('/export/:filename/json', async (req, res) => {
+router.get('/export/:filename/json', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const data = readJSONFile(req.params.filename);
     
