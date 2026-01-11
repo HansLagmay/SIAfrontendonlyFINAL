@@ -1,25 +1,21 @@
 const bcrypt = require('bcryptjs');
-const fs = require('fs');
-const path = require('path');
+const { readJSONFile, writeJSONFile } = require('./fileOperations');
 
 // Salt rounds for bcrypt
 const SALT_ROUNDS = 10;
 
 // Migrate plain text passwords to bcrypt hashes
 const migratePasswords = async () => {
-  const usersFilePath = path.join(__dirname, '../data/users.json');
-  
   try {
     console.log('Starting password migration...');
     
-    // Read users file
-    if (!fs.existsSync(usersFilePath)) {
-      console.log('No users file found. Skipping migration.');
+    // Read users file using utility function
+    const users = await readJSONFile('users.json');
+    
+    if (!users || users.length === 0) {
+      console.log('No users found. Skipping migration.');
       return;
     }
-    
-    const usersData = fs.readFileSync(usersFilePath, 'utf8');
-    const users = JSON.parse(usersData);
     
     let migratedCount = 0;
     let skippedCount = 0;
@@ -38,7 +34,7 @@ const migratePasswords = async () => {
     
     // Write back to file if any passwords were migrated
     if (migratedCount > 0) {
-      fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2), 'utf8');
+      await writeJSONFile('users.json', users);
       console.log(`✅ Password migration complete: ${migratedCount} passwords hashed, ${skippedCount} already hashed.`);
     } else {
       console.log(`✅ All passwords already hashed. No migration needed.`);
@@ -46,7 +42,7 @@ const migratePasswords = async () => {
     
     return { migratedCount, skippedCount };
   } catch (error) {
-    console.error('❌ Error during password migration:', error);
+    console.error('❌ Error during password migration:', error.message);
     throw error;
   }
 };
