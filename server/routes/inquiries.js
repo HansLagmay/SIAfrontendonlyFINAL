@@ -1,26 +1,60 @@
 const express = require('express');
 const router = express.Router();
 const { readJSONFile, writeJSONFile, generateId } = require('../utils/fileOperations');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const { sanitizeBody, validateEmail } = require('../middleware/sanitize');
+const { inquiryLimiter } = require('../middleware/rateLimiter');
+const { paginate } = require('../utils/paginate');
+const { recordChange } = require('../utils/auditTrail');
 const logActivity = require('../middleware/logger');
 
-// GET all inquiries
-router.get('/', (req, res) => {
+// Check for duplicate inquiries within last 7 days
+const checkDuplicate = (inquiries, email, propertyId) => {
+  const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  
+  return inquiries.find(inq => 
+    inq.email === email && 
+    inq.propertyId === propertyId &&
+    new Date(inq.createdAt).getTime() > sevenDaysAgo &&
+    inq.status !== 'closed' &&
+    inq.status !== 'cancelled'
+  );
+};
+
+// GET all inquiries (protected, paginated)
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
-    res.json(inquiries);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    
+    const inquiries = await readJSONFile('inquiries.json');
+    
+    // Filter by agent if not admin
+    let filteredInquiries = inquiries;
+    if (req.user.role === 'agent') {
+      filteredInquiries = inquiries.filter(i => i.assignedTo === req.user.id);
+    }
+    
+    const result = paginate(filteredInquiries, page, limit);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch inquiries' });
   }
 });
 
-// GET single inquiry
-router.get('/:id', (req, res) => {
+// GET single inquiry (protected)
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
+    const inquiries = await readJSONFile('inquiries.json');
     const inquiry = inquiries.find(i => i.id === req.params.id);
     
     if (!inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    
+    // Check access rights
+    if (req.user.role === 'agent' && inquiry.assignedTo !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this inquiry' });
     }
     
     res.json(inquiry);
@@ -29,10 +63,26 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// POST new inquiry
-router.post('/', (req, res) => {
+// POST new inquiry (public with rate limiting and sanitization)
+router.post('/', sanitizeBody, inquiryLimiter, async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
+    // Validate email
+    if (!validateEmail(req.body.email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    const inquiries = await readJSONFile('inquiries.json');
+    
+    // Check for duplicate inquiry
+    const duplicate = checkDuplicate(inquiries, req.body.email, req.body.propertyId);
+    if (duplicate) {
+      logActivity('DUPLICATE_INQUIRY', `Duplicate inquiry attempt: ${req.body.email} for property ${req.body.propertyId}`, 'System');
+      return res.status(409).json({ 
+        error: 'You have already submitted an inquiry for this property.',
+        existingTicket: duplicate.ticketNumber,
+        submittedAt: duplicate.createdAt
+      });
+    }
     
     // Generate ticket number in format INQ-2026-001
     const year = new Date().getFullYear();
@@ -79,11 +129,11 @@ router.post('/', (req, res) => {
     };
     
     inquiries.push(newInquiry);
-    writeJSONFile('inquiries.json', inquiries);
+    await writeJSONFile('inquiries.json', inquiries);
     
     // Also add to new-inquiries tracking
     try {
-      const newInquiries = readJSONFile('new-inquiries.json');
+      const newInquiries = await readJSONFile('new-inquiries.json');
       newInquiries.push({
         id: newInquiry.id,
         ticketNumber: newInquiry.ticketNumber,
@@ -91,7 +141,7 @@ router.post('/', (req, res) => {
         propertyTitle: newInquiry.propertyTitle,
         createdAt: newInquiry.createdAt
       });
-      writeJSONFile('new-inquiries.json', newInquiries);
+      await writeJSONFile('new-inquiries.json', newInquiries);
     } catch (e) {
       console.error('Failed to update new-inquiries tracking:', e);
     }
@@ -105,14 +155,29 @@ router.post('/', (req, res) => {
   }
 });
 
-// PUT update inquiry
-router.put('/:id', (req, res) => {
+// PUT update inquiry (protected, with audit trail)
+router.put('/:id', authenticateToken, sanitizeBody, async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
+    const inquiries = await readJSONFile('inquiries.json');
     const index = inquiries.findIndex(i => i.id === req.params.id);
     
     if (index === -1) {
       return res.status(404).json({ error: 'Inquiry not found' });
+    }
+    
+    const oldInquiry = { ...inquiries[index] };
+    
+    // Check access rights for agents
+    if (req.user.role === 'agent' && oldInquiry.assignedTo !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this inquiry' });
+    }
+    
+    // Track changes for audit trail
+    if (req.body.status && req.body.status !== oldInquiry.status) {
+      recordChange(inquiries[index], 'status', oldInquiry.status, req.body.status, req.user.id, req.user.name);
+    }
+    if (req.body.assignedTo && req.body.assignedTo !== oldInquiry.assignedTo) {
+      recordChange(inquiries[index], 'assignedTo', oldInquiry.assignedTo, req.body.assignedTo, req.user.id, req.user.name);
     }
     
     inquiries[index] = {
@@ -122,9 +187,9 @@ router.put('/:id', (req, res) => {
       updatedAt: new Date().toISOString()
     };
     
-    writeJSONFile('inquiries.json', inquiries);
+    await writeJSONFile('inquiries.json', inquiries);
     
-    logActivity('UPDATE_INQUIRY', `Updated inquiry: ${inquiries[index].id}`, req.body.user);
+    logActivity('UPDATE_INQUIRY', `Updated inquiry: ${inquiries[index].ticketNumber}`, req.user.name);
     
     res.json(inquiries[index]);
   } catch (error) {
@@ -132,20 +197,20 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// DELETE inquiry
-router.delete('/:id', (req, res) => {
+// DELETE inquiry (protected, admin only)
+router.delete('/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
+    const inquiries = await readJSONFile('inquiries.json');
     const index = inquiries.findIndex(i => i.id === req.params.id);
     
     if (index === -1) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    inquiries.splice(index, 1);
-    writeJSONFile('inquiries.json', inquiries);
+    const deletedInquiry = inquiries.splice(index, 1)[0];
+    await writeJSONFile('inquiries.json', inquiries);
     
-    logActivity('DELETE_INQUIRY', `Deleted inquiry: ${req.params.id}`, req.query.user);
+    logActivity('DELETE_INQUIRY', `Deleted inquiry: ${deletedInquiry.ticketNumber}`, req.user.name);
     
     res.json({ message: 'Inquiry deleted successfully' });
   } catch (error) {
@@ -153,13 +218,12 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-// POST claim inquiry (agent self-service)
-router.post('/:id/claim', (req, res) => {
+// POST claim inquiry (agent self-service, protected)
+router.post('/:id/claim', authenticateToken, requireRole(['agent']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { agentId, agentName } = req.body;
     
-    const inquiries = readJSONFile('inquiries.json');
+    const inquiries = await readJSONFile('inquiries.json');
     const inquiry = inquiries.find(i => i.id === id);
     
     if (!inquiry) {
@@ -170,14 +234,18 @@ router.post('/:id/claim', (req, res) => {
       return res.status(409).json({ error: 'Ticket already claimed by another agent' });
     }
     
-    inquiry.assignedTo = agentId;
-    inquiry.claimedBy = agentId;
+    // Track change for audit trail
+    recordChange(inquiry, 'assignedTo', null, req.user.id, req.user.id, req.user.name, 'Agent claimed ticket');
+    recordChange(inquiry, 'status', inquiry.status, 'claimed', req.user.id, req.user.name);
+    
+    inquiry.assignedTo = req.user.id;
+    inquiry.claimedBy = req.user.id;
     inquiry.claimedAt = new Date().toISOString();
     inquiry.status = 'claimed';
     inquiry.updatedAt = new Date().toISOString();
     
-    writeJSONFile('inquiries.json', inquiries);
-    logActivity('CLAIM_INQUIRY', `Agent ${agentName} claimed inquiry ${inquiry.ticketNumber}`, agentName);
+    await writeJSONFile('inquiries.json', inquiries);
+    logActivity('CLAIM_INQUIRY', `Agent ${req.user.name} claimed inquiry ${inquiry.ticketNumber}`, req.user.name);
     
     res.json(inquiry);
   } catch (error) {
@@ -186,27 +254,31 @@ router.post('/:id/claim', (req, res) => {
   }
 });
 
-// POST assign inquiry (admin)
-router.post('/:id/assign', (req, res) => {
+// POST assign inquiry (admin, protected)
+router.post('/:id/assign', authenticateToken, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { agentId, adminId, adminName, agentName } = req.body;
+    const { agentId, agentName } = req.body;
     
-    const inquiries = readJSONFile('inquiries.json');
+    const inquiries = await readJSONFile('inquiries.json');
     const inquiry = inquiries.find(i => i.id === id);
     
     if (!inquiry) {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
+    // Track changes for audit trail
+    recordChange(inquiry, 'assignedTo', inquiry.assignedTo, agentId, req.user.id, req.user.name, `Assigned to ${agentName}`);
+    recordChange(inquiry, 'status', inquiry.status, 'assigned', req.user.id, req.user.name);
+    
     inquiry.assignedTo = agentId;
-    inquiry.assignedBy = adminId;
+    inquiry.assignedBy = req.user.id;
     inquiry.assignedAt = new Date().toISOString();
     inquiry.status = 'assigned';
     inquiry.updatedAt = new Date().toISOString();
     
-    writeJSONFile('inquiries.json', inquiries);
-    logActivity('ASSIGN_INQUIRY', `Admin ${adminName} assigned inquiry ${inquiry.ticketNumber} to ${agentName}`, adminName);
+    await writeJSONFile('inquiries.json', inquiries);
+    logActivity('ASSIGN_INQUIRY', `Admin ${req.user.name} assigned inquiry ${inquiry.ticketNumber} to ${agentName}`, req.user.name);
     
     res.json(inquiry);
   } catch (error) {
@@ -215,11 +287,11 @@ router.post('/:id/assign', (req, res) => {
   }
 });
 
-// GET agent workload
-router.get('/agents/workload', (req, res) => {
+// GET agent workload (protected)
+router.get('/agents/workload', authenticateToken, async (req, res) => {
   try {
-    const inquiries = readJSONFile('inquiries.json');
-    const users = readJSONFile('users.json');
+    const inquiries = await readJSONFile('inquiries.json');
+    const users = await readJSONFile('users.json');
     
     const agents = users.filter(u => u.role === 'agent');
     

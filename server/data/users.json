@@ -2,7 +2,7 @@
   {
     "id": "user001",
     "email": "admin@tesproperty.com",
-    "password": "admin123",
+    "password": "$2b$10$WFIzIqs5px2QakymQX8C7.i3hHzSSyVPS051eQYVjpWQIa0aGkP3y",
     "role": "admin",
     "name": "Admin User",
     "createdAt": "2024-01-01T00:00:00.000Z"
@@ -10,7 +10,7 @@
   {
     "id": "user002",
     "email": "maria@tesproperty.com",
-    "password": "agent123",
+    "password": "$2b$10$7TfYKPC4TpL5r457XUPeIuuxNIzA1Y54DsbB.72NLnNyjZJUYXfza",
     "role": "agent",
     "name": "Maria Santos",
     "createdAt": "2024-01-01T00:00:00.000Z"

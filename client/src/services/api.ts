@@ -11,6 +11,7 @@ import type {
   DatabaseOverview,
   FileMetadata
 } from '../types';
+import { getToken, clearSession } from '../utils/session';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -21,26 +22,75 @@ const api = axios.create({
   },
 });
 
+// Request interceptor to add JWT token
+api.interceptors.request.use(
+  (config) => {
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Session expired or invalid
+      clearSession();
+      
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?session_expired=true';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Pagination response type
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalRecords: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+    limit: number;
+  };
+}
+
 // Properties API
 export const propertiesAPI = {
-  getAll: () => api.get<Property[]>('/properties'),
+  getAll: (page?: number, limit?: number) => 
+    api.get<PaginatedResponse<Property>>('/properties', { params: { page, limit } }),
   getById: (id: string) => api.get<Property>(`/properties/${id}`),
   create: (property: Partial<Property>) => api.post<Property>('/properties', property),
   update: (id: string, property: Partial<Property>) => api.put<Property>(`/properties/${id}`, property),
-  delete: (id: string, user?: string) => api.delete(`/properties/${id}`, { params: { user } }),
+  delete: (id: string) => api.delete(`/properties/${id}`),
+  uploadImages: (formData: FormData) => 
+    api.post<{ imageUrls: string[] }>('/properties/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
 };
 
 // Inquiries API
 export const inquiriesAPI = {
-  getAll: () => api.get<Inquiry[]>('/inquiries'),
+  getAll: (page?: number, limit?: number) => 
+    api.get<PaginatedResponse<Inquiry>>('/inquiries', { params: { page, limit } }),
   getById: (id: string) => api.get<Inquiry>(`/inquiries/${id}`),
   create: (inquiry: Partial<Inquiry>) => api.post<Inquiry>('/inquiries', inquiry),
   update: (id: string, inquiry: Partial<Inquiry>) => api.put<Inquiry>(`/inquiries/${id}`, inquiry),
-  delete: (id: string, user?: string) => api.delete(`/inquiries/${id}`, { params: { user } }),
-  claim: (id: string, agentId: string, agentName: string) =>
-    api.post<Inquiry>(`/inquiries/${id}/claim`, { agentId, agentName }),
-  assign: (id: string, agentId: string, adminId: string, adminName: string, agentName: string) =>
-    api.post<Inquiry>(`/inquiries/${id}/assign`, { agentId, adminId, adminName, agentName }),
+  delete: (id: string) => api.delete(`/inquiries/${id}`),
+  claim: (id: string) => api.post<Inquiry>(`/inquiries/${id}/claim`, {}),
+  assign: (id: string, agentId: string, agentName: string) =>
+    api.post<Inquiry>(`/inquiries/${id}/assign`, { agentId, agentName }),
   getAgentWorkload: () =>
     api.get<Array<{
       agentId: string;
@@ -53,19 +103,22 @@ export const inquiriesAPI = {
 
 // Users API
 export const usersAPI = {
-  getAll: () => api.get<User[]>('/users'),
-  getAgents: () => api.get<User[]>('/users/agents'),
+  getAll: (page?: number, limit?: number) => 
+    api.get<PaginatedResponse<User>>('/users', { params: { page, limit } }),
+  getAgents: (page?: number, limit?: number) => 
+    api.get<PaginatedResponse<User>>('/users/agents', { params: { page, limit } }),
   create: (agent: NewAgent) => api.post<User>('/users', agent),
-  delete: (id: string, user?: string) => api.delete(`/users/${id}`, { params: { user } }),
+  delete: (id: string) => api.delete(`/users/${id}`),
 };
 
 // Calendar API
 export const calendarAPI = {
-  getAll: () => api.get<CalendarEvent[]>('/calendar'),
+  getAll: (page?: number, limit?: number) => 
+    api.get<PaginatedResponse<CalendarEvent>>('/calendar', { params: { page, limit } }),
   getByAgent: (agentId: string) => api.get<CalendarEvent[]>(`/calendar/agent/${agentId}`),
   create: (event: Partial<CalendarEvent>) => api.post<CalendarEvent>('/calendar', event),
   update: (id: string, event: Partial<CalendarEvent>) => api.put<CalendarEvent>(`/calendar/${id}`, event),
-  delete: (id: string, user?: string) => api.delete(`/calendar/${id}`, { params: { user } }),
+  delete: (id: string) => api.delete(`/calendar/${id}`),
 };
 
 // Auth API
@@ -76,10 +129,7 @@ export const authAPI = {
 // Activity Log API
 export const activityLogAPI = {
   getAll: (page?: number, limit?: number) => 
-    api.get<{ logs: ActivityLog[]; total: number; page: number; totalPages: number }>(
-      '/activity-log',
-      { params: { page, limit } }
-    ),
+    api.get<PaginatedResponse<ActivityLog>>('/activity-log', { params: { page, limit } }),
 };
 
 // Database API

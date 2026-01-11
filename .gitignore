@@ -33,3 +33,11 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Server uploads and backups
+server/uploads/
+server/data/backups/
+
+# Lock files
+*.lock
+package-lock.json
