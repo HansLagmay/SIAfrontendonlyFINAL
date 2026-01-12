@@ -4,12 +4,17 @@ import FileMetadataComponent from './FileMetadata';
 import ExportButtons from './ExportButtons';
 import DataTable from './DataTable';
 import type { FileMetadata, CalendarEvent } from '../../types';
+import { useDialog } from '../../hooks/useDialog';
+import { handleDatabaseExport } from '../../utils/database';
+import type { TableRow } from '../../types/api';
+import Toast from '../shared/Toast';
 
 export default function CalendarSection() {
   const [metadata, setMetadata] = useState<FileMetadata | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showTable, setShowTable] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { toastState, showToast, closeToast } = useDialog();
 
   useEffect(() => {
     fetchData();
@@ -33,24 +38,9 @@ export default function CalendarSection() {
   };
 
   const handleExport = async (format: 'csv' | 'json') => {
-    try {
-      const response = format === 'csv' 
-        ? await databaseAPI.exportCSV('calendar-events.json')
-        : await databaseAPI.exportJSON('calendar-events.json');
-      
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `calendar-events.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Failed to export:', error);
-      alert('Failed to export file');
-    }
+    await handleDatabaseExport('calendar-events.json', format, () => {
+      showToast({ type: 'error', message: 'Failed to export file' });
+    });
   };
 
   const getEventTypeBreakdown = () => {
@@ -107,11 +97,21 @@ export default function CalendarSection() {
                 No calendar events available
               </div>
             ) : (
-              <DataTable data={events} maxRows={10} />
+              <DataTable data={events as unknown as TableRow[]} maxRows={10} />
             )}
           </div>
         )}
       </div>
+      
+      {/* Toast */}
+      {toastState.isVisible && (
+        <Toast
+          message={toastState.message}
+          type={toastState.type}
+          duration={toastState.duration}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 }

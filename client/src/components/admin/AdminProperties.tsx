@@ -1,11 +1,28 @@
 import { useState, useEffect } from 'react';
 import { propertiesAPI, usersAPI } from '../../services/api';
 import type { Property, User } from '../../types';
+import type { PropertyUpdateData } from '../../types/api';
+import { useDialog } from '../../hooks/useDialog';
+import ConfirmDialog from '../shared/ConfirmDialog';
+import PromptDialog from '../shared/PromptDialog';
+import Toast from '../shared/Toast';
 
 const AdminProperties = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [agents, setAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const {
+    dialogState,
+    toastState,
+    openConfirm,
+    openPrompt,
+    showToast,
+    handleConfirm,
+    handleCancel,
+    handlePromptSubmit,
+    handlePromptCancel,
+    closeToast
+  } = useDialog();
 
   useEffect(() => {
     loadData();
@@ -18,7 +35,7 @@ const AdminProperties = () => {
         usersAPI.getAll()
       ]);
       setProperties(propertiesRes.data);
-      setAgents(usersRes.data.filter((u: any) => u.role === 'agent'));
+      setAgents(usersRes.data.filter((u: User) => u.role === 'agent'));
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -39,7 +56,7 @@ const AdminProperties = () => {
     const admin = JSON.parse(localStorage.getItem('user') || '{}');
     
     try {
-      let updateData: any = {
+      let updateData: PropertyUpdateData = {
         status: newStatus,
         statusHistory: [
           ...(property.statusHistory || []),
@@ -54,19 +71,30 @@ const AdminProperties = () => {
       
       // If changing to "sold", require agent selection and sale details
       if (newStatus === 'sold') {
-        const agentId = prompt(`Enter agent ID who sold this property (Available agents: ${agents.map(a => `${a.name} (${a.id})`).join(', ')}):`);
+        const agentId = await openPrompt({
+          title: 'Select Agent',
+          message: `Enter agent ID who sold this property:`,
+          placeholder: `Available agents: ${agents.map(a => `${a.name} (${a.id})`).join(', ')}`
+        });
+        
         if (!agentId) {
-          alert('Agent ID is required for sold properties');
+          showToast({ type: 'error', message: 'Agent ID is required for sold properties' });
           return;
         }
         
         const selectedAgent = agents.find(a => a.id === agentId);
         if (!selectedAgent) {
-          alert('Invalid agent ID');
+          showToast({ type: 'error', message: 'Invalid agent ID' });
           return;
         }
         
-        const salePriceStr = prompt(`Enter final sale price (default: ₱${property.price.toLocaleString()}):`);
+        const salePriceStr = await openPrompt({
+          title: 'Enter Sale Price',
+          message: `Enter final sale price (default: ₱${property.price.toLocaleString()}):`,
+          defaultValue: property.price.toString(),
+          inputType: 'number'
+        });
+        
         const salePrice = salePriceStr ? parseFloat(salePriceStr) : property.price;
         
         updateData = {
@@ -88,24 +116,33 @@ const AdminProperties = () => {
         };
       }
       
-      await propertiesAPI.update(property.id, updateData);
+      await propertiesAPI.update(property.id, updateData as Partial<Property>);
       await loadProperties();
-      alert('Property status updated successfully!');
+      showToast({ type: 'success', message: 'Property status updated successfully!' });
     } catch (error) {
       console.error('Failed to update property status:', error);
-      alert('Failed to update property status');
+      showToast({ type: 'error', message: 'Failed to update property status' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this property?')) return;
+    const confirmed = await openConfirm({
+      title: 'Delete Property',
+      message: 'Are you sure you want to delete this property?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    
+    if (!confirmed) return;
 
     try {
       await propertiesAPI.delete(id);
       await loadProperties();
+      showToast({ type: 'success', message: 'Property deleted successfully' });
     } catch (error) {
       console.error('Failed to delete property:', error);
-      alert('Failed to delete property');
+      showToast({ type: 'error', message: 'Failed to delete property' });
     }
   };
 
@@ -212,6 +249,42 @@ const AdminProperties = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Dialogs */}
+      {dialogState.type === 'confirm' && dialogState.config && 'confirmText' in dialogState.config && (
+        <ConfirmDialog
+          isOpen={dialogState.isOpen}
+          title={dialogState.config.title}
+          message={dialogState.config.message}
+          confirmText={dialogState.config.confirmText}
+          cancelText={dialogState.config.cancelText}
+          variant={dialogState.config.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
+      )}
+      
+      {dialogState.type === 'prompt' && dialogState.config && 'placeholder' in dialogState.config && (
+        <PromptDialog
+          isOpen={dialogState.isOpen}
+          title={dialogState.config.title}
+          message={dialogState.config.message}
+          placeholder={dialogState.config.placeholder}
+          defaultValue={dialogState.config.defaultValue}
+          inputType={dialogState.config.inputType}
+          onSubmit={handlePromptSubmit}
+          onCancel={handlePromptCancel}
+        />
+      )}
+      
+      {toastState.isVisible && (
+        <Toast
+          message={toastState.message}
+          type={toastState.type}
+          duration={toastState.duration}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 };

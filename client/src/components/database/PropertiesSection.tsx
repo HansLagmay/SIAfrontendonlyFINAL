@@ -4,6 +4,11 @@ import FileMetadataComponent from './FileMetadata';
 import ExportButtons from './ExportButtons';
 import DataTable from './DataTable';
 import type { FileMetadata, Property } from '../../types';
+import { useDialog } from '../../hooks/useDialog';
+import { handleDatabaseExport, handleClearNewTracking, getUserFromStorage } from '../../utils/database';
+import type { TableRow } from '../../types/api';
+import ConfirmDialog from '../shared/ConfirmDialog';
+import Toast from '../shared/Toast';
 
 export default function PropertiesSection() {
   const [metadata, setMetadata] = useState<FileMetadata | null>(null);
@@ -13,6 +18,15 @@ export default function PropertiesSection() {
   const [showTable, setShowTable] = useState(false);
   const [showNewProperties, setShowNewProperties] = useState(false);
   const [loading, setLoading] = useState(true);
+  const {
+    dialogState,
+    toastState,
+    openConfirm,
+    showToast,
+    handleConfirm,
+    handleCancel,
+    closeToast
+  } = useDialog();
 
   useEffect(() => {
     fetchData();
@@ -40,48 +54,34 @@ export default function PropertiesSection() {
   };
 
   const handleExport = async (filename: string, format: 'csv' | 'json') => {
-    try {
-      const response = format === 'csv' 
-        ? await databaseAPI.exportCSV(filename)
-        : await databaseAPI.exportJSON(filename);
-      
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename.replace('.json', `.${format}`);
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Failed to export:', error);
-      alert('Failed to export file');
-    }
+    await handleDatabaseExport(filename, format, () => {
+      showToast({ type: 'error', message: 'Failed to export file' });
+    });
   };
 
   const handleClearNew = async () => {
-    if (!confirm('Are you sure you want to clear the new properties list?')) return;
+    const confirmed = await openConfirm({
+      title: 'Clear New Properties',
+      message: 'Are you sure you want to clear the new properties list?',
+      confirmText: 'Clear',
+      cancelText: 'Cancel',
+      variant: 'warning'
+    });
     
-    try {
-      let userName = 'Admin';
-      try {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          userName = user.name || 'Admin';
-        }
-      } catch (e) {
-        console.error('Error parsing user data:', e);
+    if (!confirmed) return;
+    
+    const user = getUserFromStorage();
+    await handleClearNewTracking(
+      'properties',
+      user.name,
+      () => {
+        showToast({ type: 'success', message: 'New properties list cleared successfully' });
+        fetchData();
+      },
+      () => {
+        showToast({ type: 'error', message: 'Failed to clear new properties list' });
       }
-      
-      await databaseAPI.clearNew('properties', userName);
-      alert('New properties list cleared successfully');
-      fetchData();
-    } catch (error) {
-      console.error('Failed to clear new properties:', error);
-      alert('Failed to clear new properties list');
-    }
+    );
   };
 
   if (loading) {
@@ -110,7 +110,7 @@ export default function PropertiesSection() {
 
         {showTable && (
           <div className="mt-4">
-            <DataTable data={properties} maxRows={10} />
+            <DataTable data={properties as unknown as TableRow[]} maxRows={10} />
           </div>
         )}
       </div>
@@ -167,6 +167,29 @@ export default function PropertiesSection() {
           </>
         )}
       </div>
+      
+      {/* Dialogs */}
+      {dialogState.type === 'confirm' && dialogState.config && 'confirmText' in dialogState.config && (
+        <ConfirmDialog
+          isOpen={dialogState.isOpen}
+          title={dialogState.config.title}
+          message={dialogState.config.message}
+          confirmText={dialogState.config.confirmText}
+          cancelText={dialogState.config.cancelText}
+          variant={dialogState.config.variant}
+          onConfirm={handleConfirm}
+          onCancel={handleCancel}
+        />
+      )}
+      
+      {toastState.isVisible && (
+        <Toast
+          message={toastState.message}
+          type={toastState.type}
+          duration={toastState.duration}
+          onClose={closeToast}
+        />
+      )}
     </div>
   );
 }

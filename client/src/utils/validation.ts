@@ -1,4 +1,6 @@
-export const validateProperty = (property: any) => {
+import type { PropertyValidationData, InquiryValidationData, ValidationErrors } from '../types/api';
+
+export const validateProperty = (property: PropertyValidationData): ValidationErrors => {
   const errors: Record<string, string> = {};
   
   if (!property.title || property.title.length < 10) {
@@ -24,7 +26,7 @@ export const validateProperty = (property: any) => {
   return errors;
 };
 
-export const validateInquiry = (inquiry: any) => {
+export const validateInquiry = (inquiry: InquiryValidationData): ValidationErrors => {
   const errors: Record<string, string> = {};
   
   const phoneRegex = /^(09|\+639)\d{9}$/;
