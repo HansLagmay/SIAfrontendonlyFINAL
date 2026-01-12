@@ -24,7 +24,7 @@ export default function CalendarSection() {
       ]);
       
       setMetadata(metaRes.data);
-      setEvents(eventsRes.data);
+      setEvents(eventsRes.data as CalendarEvent[]);
     } catch (error) {
       console.error('Failed to fetch calendar data:', error);
     } finally {
@@ -107,7 +107,7 @@ export default function CalendarSection() {
                 No calendar events available
               </div>
             ) : (
-              <DataTable data={events} maxRows={10} />
+              <DataTable data={events as unknown as Record<string, unknown>[]} maxRows={10} />
             )}
           </div>
         )}

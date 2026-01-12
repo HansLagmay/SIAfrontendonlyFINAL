@@ -18,7 +18,7 @@ const AdminProperties = () => {
         usersAPI.getAll()
       ]);
       setProperties(propertiesRes.data);
-      setAgents(usersRes.data.filter((u: any) => u.role === 'agent'));
+      setAgents(usersRes.data.filter((u: User) => u.role === 'agent'));
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -39,8 +39,8 @@ const AdminProperties = () => {
     const admin = JSON.parse(localStorage.getItem('user') || '{}');
     
     try {
-      let updateData: any = {
-        status: newStatus,
+      let updateData: Partial<Property> = {
+        status: newStatus as Property['status'],
         statusHistory: [
           ...(property.statusHistory || []),
           {

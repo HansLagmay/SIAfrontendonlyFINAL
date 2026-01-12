@@ -24,9 +24,9 @@ export default function ActivityLogViewer() {
       ]);
       
       setMetadata(metaRes.data);
-      setLogs(logsRes.data);
+      setLogs(logsRes.data as ActivityLog[]);
       // Show last 10 by default
-      setDisplayLogs(logsRes.data.slice(-10).reverse());
+      setDisplayLogs((logsRes.data as ActivityLog[]).slice(-10).reverse());
     } catch (error) {
       console.error('Failed to fetch activity log:', error);
     } finally {

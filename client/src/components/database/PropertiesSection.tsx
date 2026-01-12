@@ -30,8 +30,8 @@ export default function PropertiesSection() {
       
       setMetadata(metaRes.data);
       setNewMetadata(newMetaRes.data);
-      setProperties(propsRes.data);
-      setNewProperties(newPropsRes.data);
+      setProperties(propsRes.data as Property[]);
+      setNewProperties(newPropsRes.data as Property[]);
     } catch (error) {
       console.error('Failed to fetch properties data:', error);
     } finally {
@@ -110,7 +110,7 @@ export default function PropertiesSection() {
 
         {showTable && (
           <div className="mt-4">
-            <DataTable data={properties} maxRows={10} />
+            <DataTable data={properties as unknown as Record<string, unknown>[]} maxRows={10} />
           </div>
         )}
       </div>

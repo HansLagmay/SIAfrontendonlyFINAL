@@ -9,7 +9,7 @@ export default function UsersSection() {
   const [metadata, setMetadata] = useState<FileMetadata | null>(null);
   const [newMetadata, setNewMetadata] = useState<FileMetadata | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [newAgents, setNewAgents] = useState<any[]>([]);
+  const [newAgents, setNewAgents] = useState<User[]>([]);
   const [showTable, setShowTable] = useState(false);
   const [showNewAgents, setShowNewAgents] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -30,8 +30,8 @@ export default function UsersSection() {
       
       setMetadata(metaRes.data);
       setNewMetadata(newMetaRes.data);
-      setUsers(usersRes.data);
-      setNewAgents(newAgentsRes.data);
+      setUsers(usersRes.data as User[]);
+      setNewAgents(newAgentsRes.data as User[]);
     } catch (error) {
       console.error('Failed to fetch users data:', error);
     } finally {
@@ -132,7 +132,7 @@ export default function UsersSection() {
 
         {showTable && (
           <div className="mt-4">
-            <DataTable data={users} maxRows={10} />
+            <DataTable data={users as unknown as Record<string, unknown>[]} maxRows={10} />
           </div>
         )}
       </div>

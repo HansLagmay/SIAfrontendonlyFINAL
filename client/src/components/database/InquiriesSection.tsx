@@ -30,8 +30,8 @@ export default function InquiriesSection() {
       
       setMetadata(metaRes.data);
       setNewMetadata(newMetaRes.data);
-      setInquiries(inqRes.data);
-      setNewInquiries(newInqRes.data);
+      setInquiries(inqRes.data as Inquiry[]);
+      setNewInquiries(newInqRes.data as Inquiry[]);
     } catch (error) {
       console.error('Failed to fetch inquiries data:', error);
     } finally {
@@ -134,7 +134,7 @@ export default function InquiriesSection() {
 
         {showTable && (
           <div className="mt-4">
-            <DataTable data={inquiries} maxRows={10} />
+            <DataTable data={inquiries as unknown as Record<string, unknown>[]} maxRows={10} />
           </div>
         )}
       </div>
