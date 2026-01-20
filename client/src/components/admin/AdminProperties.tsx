@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { propertiesAPI, usersAPI } from '../../services/api';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import PromptDialog from '../shared/PromptDialog';
+import AgentSelectModal from '../shared/AgentSelectModal';
 import Toast, { ToastType } from '../shared/Toast';
 import type { Property, User } from '../../types';
 import type { PropertyUpdateData } from '../../types/api';
@@ -11,6 +12,16 @@ const AdminProperties = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [agents, setAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentSelectModalState, setAgentSelectModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    onSelect: (agentId: string) => void;
+  }>({
+    isOpen: false,
+    title: '',
+    onSelect: () => {}
+  });
   const {
     dialogState,
     toastState,
