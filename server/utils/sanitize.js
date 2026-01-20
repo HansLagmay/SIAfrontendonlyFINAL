@@ -2,17 +2,24 @@ const validator = require('validator');
 
 /**
  * Check if string contains malicious content
+ * NOTE: This is a defense-in-depth measure. All user input is also escaped using validator.escape()
+ * which converts HTML special characters, preventing XSS even if this check is bypassed.
  * @param {string} str - String to check
  * @returns {boolean} - True if malicious content detected
  */
 const containsMaliciousContent = (str) => {
   if (typeof str !== 'string') return false;
   
+  // Check for common XSS patterns
+  // These patterns catch most common XSS attempts before escaping
   const patterns = [
-    /<script[^>]*>.*?<\/script>/gi,
-    /on\w+\s*=\s*["'][^"']*["']/gi,
-    /<iframe/gi,
-    /javascript:/gi
+    /<script[\s\S]*?<\/script[\s\S]*?>/gi,  // Script tags with flexible spacing
+    /<\/?\s*script[\s\S]*?>/gi,              // Any script tag opening or closing
+    /on\w+\s*=\s*["'][^"']*["']/gi,         // Event handlers
+    /<iframe[\s\S]*?>/gi,                    // Iframe tags
+    /javascript:/gi,                         // JavaScript protocol
+    /<object[\s\S]*?>/gi,                    // Object tags
+    /<embed[\s\S]*?>/gi                      // Embed tags
   ];
   return patterns.some(pattern => pattern.test(str));
 };
